@@ -10,16 +10,17 @@ import { legacyRequest } from '@/utils/http'
 import {
   buildLoginPayload,
   extractSessionCookie,
-
   normalizeTodoWebViewIP,
   parseLegacyResponse,
   resolveLegacyConfig,
 } from '@/utils/login'
+import { loadRemember, saveRemember } from '@/utils/remember'
 
 const auth = useAuthStore()
 const loginType = ref<LoginType>('password')
+const showSmsToggle = false
+const rememberPassword = ref(false)
 const isLoading = ref(false)
-const errorMessage = ref('')
 const sendCooldown = ref(0)
 const form = reactive({
   loginName: '',
@@ -51,17 +52,28 @@ const secretValue = computed({
     }
   },
 })
+const accountPlaceholder = computed(() => (isCaptchaLogin.value ? '手机号' : '用户账号'))
+const secretPlaceholder = computed(() => (isCaptchaLogin.value ? '请输入验证码' : '请输入密码'))
 const canSubmit = computed(() => {
   if (isCaptchaLogin.value) {
     return form.mobile.trim().length > 0 && form.captcha.trim().length > 0
   }
   return form.loginName.trim().length > 0 && form.password.trim().length > 0
 })
-const sendLabel = computed(() => (sendCooldown.value > 0 ? `${sendCooldown.value}s` : 'Send Code'))
+const sendLabel = computed(() => (sendCooldown.value > 0 ? `${sendCooldown.value}s` : '免费获取'))
 
 let sendTimer: number | null = null
+let logoTapTimer: number | null = null
+let logoTapCount = 0
 
 onLoad(() => {
+  const rememberState = loadRemember()
+  rememberPassword.value = rememberState.remember
+  form.loginName = rememberState.loginName
+  if (rememberState.remember) {
+    form.password = rememberState.password
+  }
+
   if (auth.cookie && auth.loginModel) {
     uni.reLaunch({ url: '/pages/index/index' })
   }
@@ -71,6 +83,10 @@ onUnload(() => {
   if (sendTimer) {
     clearInterval(sendTimer)
     sendTimer = null
+  }
+  if (logoTapTimer) {
+    clearTimeout(logoTapTimer)
+    logoTapTimer = null
   }
 })
 
@@ -103,10 +119,39 @@ function startCooldown(seconds = 60) {
   }, 1000) as unknown as number
 }
 
+function toggleRemember() {
+  rememberPassword.value = !rememberPassword.value
+  saveRemember({
+    remember: rememberPassword.value,
+    loginName: form.loginName.trim() || form.mobile.trim(),
+    password: form.password,
+  })
+}
+
+function handleLogoTap() {
+  logoTapCount += 1
+  if (logoTapTimer) {
+    clearTimeout(logoTapTimer)
+    logoTapTimer = null
+  }
+  if (logoTapCount >= 5) {
+    logoTapCount = 0
+    handleChangeIP()
+    return
+  }
+  logoTapTimer = setTimeout(() => {
+    logoTapCount = 0
+    logoTapTimer = null
+  }, 800) as unknown as number
+}
+
+function handleChangeIP() {
+  console.log('change IP/port entry tapped')
+}
+
 async function handleSendCode() {
-  errorMessage.value = ''
   if (!form.mobile.trim()) {
-    uni.showToast({ title: 'Mobile required', icon: 'none' })
+    uni.showToast({ title: '请输入手机号', icon: 'none' })
     return
   }
   if (sendCooldown.value > 0)
@@ -121,17 +166,14 @@ async function handleSendCode() {
     })
     const parsed = parseLegacyResponse(response.data)
     if (!parsed.success) {
-      const message = parsed.message || 'Send failed'
-      errorMessage.value = message
-      uni.showToast({ title: message, icon: 'none' })
+      uni.showToast({ title: parsed.message || '发送失败', icon: 'none' })
       return
     }
     startCooldown(60)
-    uni.showToast({ title: 'Code sent', icon: 'none' })
+    uni.showToast({ title: '已发送', icon: 'none' })
   }
   catch (error) {
-    errorMessage.value = 'Send failed'
-    uni.showToast({ title: 'Send failed', icon: 'none' })
+    uni.showToast({ title: '发送失败', icon: 'none' })
   }
   finally {
     isLoading.value = false
@@ -139,9 +181,15 @@ async function handleSendCode() {
 }
 
 async function handleLogin() {
-  if (!canSubmit.value || isLoading.value)
+  if (isLoading.value)
     return
-  errorMessage.value = ''
+  if (!canSubmit.value) {
+    uni.showToast({
+      title: isCaptchaLogin.value ? '请输入手机号或验证码' : '请输入账号或密码',
+      icon: 'none',
+    })
+    return
+  }
 
   const loginName = form.loginName.trim()
   const mobile = form.mobile.trim()
@@ -177,9 +225,7 @@ async function handleLogin() {
     const response = await login(payload)
     const parsed = parseLegacyResponse(response.data)
     if (!parsed.success) {
-      const message = parsed.message || 'Login failed'
-      errorMessage.value = message
-      uni.showToast({ title: message, icon: 'none' })
+      uni.showToast({ title: parsed.message || '登录失败', icon: 'none' })
       return
     }
 
@@ -197,6 +243,10 @@ async function handleLogin() {
       serverAddress: normalized.serverAddress,
       loginModel: model,
     })
+
+    const loginAccount = isCaptchaLogin.value ? mobile : loginName
+    const shouldRemember = rememberPassword.value && !isCaptchaLogin.value
+    saveRemember({ remember: shouldRemember, loginName: loginAccount, password: rawPassword })
 
     const configResponse = await fetchMobileListParams()
     const configParsed = parseLegacyResponse<Array<{ attribute?: string, value?: string }>>(
@@ -219,8 +269,7 @@ async function handleLogin() {
     uni.reLaunch({ url: '/pages/index/index' })
   }
   catch (error) {
-    errorMessage.value = 'Login failed'
-    uni.showToast({ title: 'Login failed', icon: 'none' })
+    uni.showToast({ title: '登录失败', icon: 'none' })
   }
   finally {
     isLoading.value = false
@@ -229,253 +278,221 @@ async function handleLogin() {
 
 function setLoginType(type: LoginType) {
   loginType.value = type
-  errorMessage.value = ''
 }
 </script>
 
 <template>
-  <view class="login-screen">
-    <view class="login-bg">
-      <view class="orb orb-a" />
-      <view class="orb orb-b" />
-      <view class="orb orb-c" />
-    </view>
+  <view class="login-page">
+    <image
+      class="login-logo"
+      src="/static/login/login_headerImage@2x.png"
+      mode="aspectFit"
+      alt="SNMIS"
+      @tap="handleLogoTap"
+    />
 
-    <view class="login-card">
-      <view class="brand">
-        <text class="brand-title">SNMIS Portal</text>
-        <text class="brand-subtitle">Unified access for operations</text>
-      </view>
-
-      <view class="segmented">
-        <view class="seg-item" :class="{ active: !isCaptchaLogin }" @tap="setLoginType('password')">
-          Password
-        </view>
-        <view class="seg-item" :class="{ active: isCaptchaLogin }" @tap="setLoginType('captcha')">
-          SMS Code
-        </view>
-      </view>
-
-      <view class="field">
-        <text class="label">{{ isCaptchaLogin ? 'Mobile' : 'Login Name' }}</text>
-        <input
-          v-model="accountValue"
-          class="input"
-          type="text"
-          :placeholder="isCaptchaLogin ? 'e.g. 13800138000' : 'e.g. user01'"
-          confirm-type="next"
-        >
-      </view>
-
-      <view class="field">
-        <text class="label">{{ isCaptchaLogin ? 'Code' : 'Password' }}</text>
+    <view class="login-form">
+      <view class="input-group">
         <view class="input-row">
+          <view class="input-icon-box">
+            <image
+              class="input-icon"
+              src="/static/login/login_loginName_icon@2x.png"
+              mode="aspectFit"
+              alt="账号"
+            />
+          </view>
+          <input
+            v-model="accountValue"
+            class="input-control"
+            :type="isCaptchaLogin ? 'number' : 'text'"
+            :placeholder="accountPlaceholder"
+            confirm-type="next"
+          >
+          <view class="input-right" />
+        </view>
+        <view class="input-line" />
+      </view>
+
+      <view class="input-group">
+        <view class="input-row">
+          <view class="input-icon-box">
+            <image
+              class="input-icon"
+              src="/static/login/login_security_icon@2x.png"
+              mode="aspectFit"
+              alt="密码"
+            />
+          </view>
           <input
             v-model="secretValue"
-            class="input"
+            class="input-control"
             :type="isCaptchaLogin ? 'number' : 'password'"
             :password="!isCaptchaLogin"
-            :placeholder="isCaptchaLogin ? 'Verification code' : 'Your password'"
+            :placeholder="secretPlaceholder"
             confirm-type="done"
             @confirm="handleLogin"
           >
-          <button
-            v-if="isCaptchaLogin"
-            class="ghost"
-            :disabled="sendCooldown > 0"
-            @tap="handleSendCode"
-          >
-            {{ sendLabel }}
-          </button>
+          <view class="input-right">
+            <button
+              v-if="isCaptchaLogin"
+              class="sms-btn"
+              :disabled="sendCooldown > 0"
+              @tap="handleSendCode"
+            >
+              {{ sendLabel }}
+            </button>
+          </view>
         </view>
+        <view class="input-line" />
       </view>
 
-      <button class="primary" :loading="isLoading" :disabled="!canSubmit" @tap="handleLogin">
-        Sign In
+      <view class="remember-row" @tap="toggleRemember">
+        <image
+          class="remember-icon"
+          :src="rememberPassword
+            ? '/static/login/login_check_box_select@2x.png'
+            : '/static/login/login_check_box_unselect@2x.png'"
+          mode="aspectFit"
+          alt="记住密码"
+        />
+        <text class="remember-text">记住密码</text>
+      </view>
+
+      <button class="login-button" :loading="isLoading" :disabled="!canSubmit" @tap="handleLogin">
+        登录
       </button>
 
-      <text v-if="errorMessage" class="error">{{ errorMessage }}</text>
+      <button
+        v-if="showSmsToggle"
+        class="sms-toggle"
+        @tap="setLoginType(isCaptchaLogin ? 'password' : 'captcha')"
+      >
+        {{ isCaptchaLogin ? '用账号密码登录' : '用短信验证码登录' }}
+      </button>
     </view>
+
+    <text class="login-footer">版权所有：南京信业</text>
   </view>
 </template>
 
 <style lang="scss">
-.login-screen {
+.login-page {
   position: relative;
   min-height: 100vh;
-  padding: 48rpx 40rpx 80rpx;
-  background: linear-gradient(160deg, #f2f5ff 0%, #fcefe8 40%, #f7f7f2 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  font-family: 'Noto Sans SC', 'PingFang SC', 'Helvetica Neue', sans-serif;
+  background: #fff;
+  font-family: 'PingFang SC', 'Helvetica Neue', sans-serif;
+  color: #333;
 }
 
-.login-bg .orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(8px);
-  opacity: 0.7;
-  animation: float 10s ease-in-out infinite;
-}
-
-.orb-a {
-  width: 320rpx;
-  height: 320rpx;
-  background: radial-gradient(circle, rgba(93, 135, 255, 0.35), rgba(93, 135, 255, 0));
-  top: 80rpx;
-  left: -40rpx;
-}
-
-.orb-b {
-  width: 260rpx;
-  height: 260rpx;
-  background: radial-gradient(circle, rgba(255, 164, 93, 0.4), rgba(255, 164, 93, 0));
-  bottom: 120rpx;
-  right: -60rpx;
-  animation-delay: 1.2s;
-}
-
-.orb-c {
-  width: 200rpx;
-  height: 200rpx;
-  background: radial-gradient(circle, rgba(75, 208, 170, 0.35), rgba(75, 208, 170, 0));
-  top: 50%;
-  right: 40rpx;
-  animation-delay: 2.2s;
-}
-
-.login-card {
-  position: relative;
-  width: 100%;
-  max-width: 640rpx;
-  padding: 48rpx;
-  border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 24rpx 60rpx rgba(28, 31, 52, 0.12);
-  backdrop-filter: blur(10px);
-  animation: fadeUp 0.6s ease;
-}
-
-.brand {
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-  margin-bottom: 32rpx;
-}
-
-.brand-title {
-  font-size: 40rpx;
-  font-weight: 700;
-  letter-spacing: 1rpx;
-  color: #1b1e2e;
-}
-
-.brand-subtitle {
-  font-size: 24rpx;
-  color: #586077;
-}
-
-.segmented {
-  display: flex;
-  background: #f2f4fa;
-  border-radius: 18rpx;
-  padding: 8rpx;
-  margin-bottom: 32rpx;
-}
-
-.seg-item {
-  flex: 1;
-  text-align: center;
-  padding: 16rpx 0;
-  font-size: 24rpx;
-  color: #586077;
-  border-radius: 14rpx;
-  transition: all 0.2s ease;
-}
-
-.seg-item.active {
-  background: #1f2b5b;
-  color: #fff;
-  font-weight: 600;
-}
-
-.field {
-  margin-bottom: 24rpx;
-}
-
-.label {
+.login-logo {
+  width: 240rpx;
+  height: 100rpx;
+  margin: 100rpx auto 0;
   display: block;
-  font-size: 22rpx;
-  color: #61697f;
-  margin-bottom: 12rpx;
+}
+
+.login-form {
+  padding: 0 68rpx;
+  margin-top: 75rpx;
+}
+
+.input-group {
+  margin-bottom: 30rpx;
 }
 
 .input-row {
   display: flex;
-  gap: 12rpx;
   align-items: center;
+  height: 86rpx;
 }
 
-.input {
+.input-icon-box {
+  width: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.input-icon {
+  width: 30rpx;
+  height: 30rpx;
+}
+
+.input-control {
   flex: 1;
-  background: #f7f8fb;
-  border-radius: 16rpx;
-  padding: 18rpx 20rpx;
-  font-size: 26rpx;
-  color: #1b1e2e;
+  height: 86rpx;
+  font-size: 30rpx;
+  color: #333;
 }
 
-.primary {
-  margin-top: 16rpx;
-  background: linear-gradient(120deg, #1f2b5b, #2d4bb8);
+.input-right {
+  min-width: 120rpx;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.input-line {
+  height: 1rpx;
+  background-color: #cdcdcd;
+}
+
+.sms-btn {
+  height: 60rpx;
+  line-height: 60rpx;
+  padding: 0 16rpx;
+  background: #fd863b;
   color: #fff;
-  border-radius: 16rpx;
-  padding: 20rpx 0;
-  font-size: 28rpx;
-  font-weight: 600;
+  font-size: 24rpx;
+  border-radius: 10rpx;
 }
 
-.primary[disabled] {
+.remember-row {
+  display: flex;
+  align-items: center;
+  margin-top: 30rpx;
+  gap: 12rpx;
+}
+
+.remember-icon {
+  width: 34rpx;
+  height: 34rpx;
+}
+
+.remember-text {
+  font-size: 30rpx;
+  color: #7f7f7f;
+}
+
+.login-button {
+  margin-top: 54rpx;
+  height: 100rpx;
+  line-height: 100rpx;
+  border-radius: 12rpx;
+  background: #37a6f1;
+  color: #fff;
+  font-size: 32rpx;
+}
+
+.login-button[disabled] {
   opacity: 0.6;
 }
 
-.ghost {
-  padding: 0 18rpx;
-  height: 72rpx;
-  line-height: 72rpx;
-  border-radius: 14rpx;
-  background: #fff;
-  border: 1rpx solid #d7dce8;
+.sms-toggle {
+  margin-top: 20rpx;
+  background: transparent;
+  color: #37a6f1;
+  font-size: 26rpx;
+}
+
+.login-footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 20rpx;
+  text-align: center;
   font-size: 22rpx;
-  color: #1f2b5b;
-}
-
-.error {
-  margin-top: 16rpx;
-  color: #c9473f;
-  font-size: 22rpx;
-}
-
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-16rpx);
-  }
-}
-
-@keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(20rpx);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  color: #7f7f7f;
 }
 </style>
