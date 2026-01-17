@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { onHide, onLaunch, onShow } from '@dcloudio/uni-app'
 import { navigateToInterceptor } from '@/router/interceptor'
+import { useAuthStore } from '@/store/auth'
+
+const auth = useAuthStore()
 
 onLaunch((options) => {
   console.log('App.vue onLaunch', options)
+  auth.hydrate()
 })
 onShow((options) => {
   console.log('App.vue onShow', options)
