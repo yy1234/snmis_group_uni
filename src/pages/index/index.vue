@@ -1,17 +1,20 @@
 <script setup lang="ts">
-import type { FunctionEntry, HeaderMetric, MainIndicator } from './work.models'
+import type { EoItem, EpItem, FunctionEntry, HeaderMetric, MainIndicator } from './work.models'
 import { onLoad } from '@dcloudio/uni-app'
 import { ref } from 'vue'
 import { useAuthStore } from '@/store/auth'
 import { hasLegacySession } from '@/utils/authGuard'
 import { legacyRequest } from '@/utils/http/legacyClient'
 import { parseLegacyResponse } from '@/utils/login'
+import WorkEnvironmentalProtection from './components/WorkEnvironmentalProtection.vue'
+import WorkEquipmentOperation from './components/WorkEquipmentOperation.vue'
 import WorkFunctionGrid from './components/WorkFunctionGrid.vue'
 import WorkHeaderCarousel from './components/WorkHeaderCarousel.vue'
 import WorkIndicatorList from './components/WorkIndicatorList.vue'
 import {
   buildFunctionEntries,
-
+  normalizeEnvironmentalItems,
+  normalizeEquipmentItems,
   normalizeHeaderMetrics,
   normalizeMainIndicators,
 } from './work.models'
@@ -28,6 +31,8 @@ const headerItems = ref([1, 2, 3])
 const headerMetrics = ref<HeaderMetric[]>([])
 const functionEntries = ref<FunctionEntry[]>([])
 const indicators = ref<MainIndicator[]>([])
+const epItems = ref<EpItem[]>([])
+const eoItems = ref<EoItem[]>([])
 const loading = ref(false)
 
 onLoad(() => {
@@ -59,6 +64,20 @@ async function fetchWorkData() {
       uni.showToast({ title: indicatorPayload.message || '加载失败', icon: 'none' })
     }
     indicators.value = normalizeMainIndicators(indicatorPayload.data ?? [])
+
+    const epRes = await legacyRequest('mobileAppMainMgmt/listRealTimeFlueGas.do', {})
+    const epPayload = parseLegacyResponse<any[]>(epRes.data)
+    if (epPayload.success === false) {
+      uni.showToast({ title: epPayload.message || '加载失败', icon: 'none' })
+    }
+    epItems.value = normalizeEnvironmentalItems(epPayload.data ?? [])
+
+    const eoRes = await legacyRequest('mobileAppMainMgmt/listEquipmentOperation.do', {})
+    const eoPayload = parseLegacyResponse<any[]>(eoRes.data)
+    if (eoPayload.success === false) {
+      uni.showToast({ title: eoPayload.message || '加载失败', icon: 'none' })
+    }
+    eoItems.value = normalizeEquipmentItems(eoPayload.data ?? [])
   }
   catch (error) {
     uni.showToast({ title: '网络异常', icon: 'none' })
@@ -88,17 +107,11 @@ function handleFunction(entry: FunctionEntry) {
     </view>
 
     <view class="work-section">
-      <text class="work-section-title">环保指标</text>
-      <view class="work-card placeholder">
-        环保指标内容（按 Flutter UI 复刻）
-      </view>
+      <work-environmental-protection :items="epItems" />
     </view>
 
     <view class="work-section">
-      <text class="work-section-title">设备运行</text>
-      <view class="work-card placeholder">
-        设备运行内容（按 Flutter UI 复刻）
-      </view>
+      <work-equipment-operation :items="eoItems" />
     </view>
 
     <view v-if="loading" class="work-loading">
@@ -123,18 +136,6 @@ function handleFunction(entry: FunctionEntry) {
   font-weight: 600;
   color: #333;
   margin-bottom: 16rpx;
-}
-
-.work-card {
-  background: #fff;
-  border-radius: 20rpx;
-  padding: 24rpx;
-  box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.08);
-}
-
-.placeholder {
-  color: #999;
-  font-size: 24rpx;
 }
 
 .work-loading {
