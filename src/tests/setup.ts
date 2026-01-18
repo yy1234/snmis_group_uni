@@ -12,3 +12,9 @@ globalThis.uni = {
   removeStorageSync: vi.fn(),
   hideTabBar: vi.fn(),
 } as any
+
+globalThis.definePage = vi.fn()
+
+vi.mock('@dcloudio/uni-app', () => ({
+  onLoad: vi.fn(),
+}))
