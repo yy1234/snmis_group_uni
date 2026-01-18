@@ -69,8 +69,8 @@ onMounted(() => {
   })
 })
 // #endif
-const activeColor = 'var(--wot-color-theme, #1890ff)'
-const inactiveColor = '#666'
+const activeColor = '#008FFF'
+const inactiveColor = '#8C8C8C'
 function getColorByIndex(index: number) {
   return tabbarStore.curIdx === index ? activeColor : inactiveColor
 }

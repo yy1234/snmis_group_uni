@@ -24,16 +24,34 @@ export const selectedTabbarStrategy = TABBAR_STRATEGY_MAP.CUSTOM_TABBAR
 // TODO: 2/3. 使用 NATIVE_TABBAR 时，更新下面的 tabbar 配置
 export const nativeTabbarList: NativeTabBarItem[] = [
   {
-    iconPath: 'static/tabbar/home.png',
-    selectedIconPath: 'static/tabbar/homeHL.png',
+    iconPath: 'static/tabbar/work.png',
+    selectedIconPath: 'static/tabbar/work-active.png',
     pagePath: 'pages/index/index',
-    text: '首页',
+    text: '工作',
   },
   {
-    iconPath: 'static/tabbar/personal.png',
-    selectedIconPath: 'static/tabbar/personalHL.png',
+    iconPath: 'static/tabbar/message.png',
+    selectedIconPath: 'static/tabbar/message-active.png',
+    pagePath: 'pages/message/index',
+    text: '消息',
+  },
+  {
+    iconPath: 'static/tabbar/todo.png',
+    selectedIconPath: 'static/tabbar/todo-active.png',
+    pagePath: 'pages/todo/index',
+    text: '待办',
+  },
+  {
+    iconPath: 'static/tabbar/contacts.png',
+    selectedIconPath: 'static/tabbar/contacts-active.png',
+    pagePath: 'pages/contacts/index',
+    text: '通讯录',
+  },
+  {
+    iconPath: 'static/tabbar/profile.png',
+    selectedIconPath: 'static/tabbar/profile-active.png',
     pagePath: 'pages/me/me',
-    text: '个人',
+    text: '我的',
   },
 ]
 
@@ -41,61 +59,40 @@ export const nativeTabbarList: NativeTabBarItem[] = [
 // 如果需要配置鼓包，需要在 'tabbar/store.ts' 里面设置，最后在 `tabbar/index.vue` 里面更改鼓包的图片
 export const customTabbarList: CustomTabBarItem[] = [
   {
-    text: '首页',
+    text: '工作',
     pagePath: 'pages/index/index',
-    // 注意 unocss 图标需要如下处理：（二选一）
-    // 1）在fg-tabbar.vue页面上引入一下并注释掉（见tabbar/index.vue代码第2行）
-    // 2）配置到 unocss.config.ts 的 safelist 中
-    iconType: 'unocss',
-    icon: 'i-carbon-home',
-    // badge: 'dot',
+    iconType: 'image',
+    icon: '/static/tabbar/work.png',
+    iconActive: '/static/tabbar/work-active.png',
   },
-  // 鼓包配置示例（2025-12-31）
-  // 中间鼓包tabbarItem配置：通常是扫描按钮、发布按钮、更多按钮等，点击触发业务逻辑
-  // {
-  //   pagePath: 'pages/me/me',
-  //   text: '我的',
-  //   // 1）在fg-tabbar.vue页面上引入一下并注释掉（见tabbar/index.vue代码第2行）
-  //   // 2）配置到 unocss.config.ts 的 safelist 中
-  //   iconType: 'image',
-  //   icon: '/static/tabbar/scan.png',
-  //   isBulge: true,
-  // },
   {
-    pagePath: 'pages/me/me',
-    text: '我的',
-    // 1）在fg-tabbar.vue页面上引入一下并注释掉（见tabbar/index.vue代码第2行）
-    // 2）配置到 unocss.config.ts 的 safelist 中
-    iconType: 'unocss',
-    icon: 'i-carbon-user',
-    // badge: 10,
+    text: '消息',
+    pagePath: 'pages/message/index',
+    iconType: 'image',
+    icon: '/static/tabbar/message.png',
+    iconActive: '/static/tabbar/message-active.png',
   },
-
-  // 其他类型演示
-  // 1、uiLib
-  // {
-  //   pagePath: 'pages/index/index',
-  //   text: '首页',
-  //   iconType: 'uiLib',
-  //   icon: 'home',
-  // },
-  // 2、iconfont
-  // {
-  //   pagePath: 'pages/index/index',
-  //   text: '首页',
-  //   // 注意 iconfont 图标需要额外加上 'iconfont'，如下
-  //   iconType: 'iconfont',
-  //   icon: 'iconfont icon-my',
-  // },
-  // 3、image
-  // {
-  //   pagePath: 'pages/index/index',
-  //   text: '首页',
-  //   // 使用 ‘image’时，需要配置 icon + iconActive 2张图片
-  //   iconType: 'image',
-  //   icon: '/static/tabbar/home.png',
-  //   iconActive: '/static/tabbar/homeHL.png',
-  // },
+  {
+    text: '待办',
+    pagePath: 'pages/todo/index',
+    iconType: 'image',
+    icon: '/static/tabbar/todo.png',
+    iconActive: '/static/tabbar/todo-active.png',
+  },
+  {
+    text: '通讯录',
+    pagePath: 'pages/contacts/index',
+    iconType: 'image',
+    icon: '/static/tabbar/contacts.png',
+    iconActive: '/static/tabbar/contacts-active.png',
+  },
+  {
+    text: '我的',
+    pagePath: 'pages/me/me',
+    iconType: 'image',
+    icon: '/static/tabbar/profile.png',
+    iconActive: '/static/tabbar/profile-active.png',
+  },
 ]
 
 /**
@@ -123,9 +120,9 @@ export const tabbarList = customTabbarEnable ? customTabbarList : nativeTabbarLi
 const _tabbar: TabBar = {
   // 只有微信小程序支持 custom。App 和 H5 不生效
   custom: selectedTabbarStrategy === TABBAR_STRATEGY_MAP.CUSTOM_TABBAR,
-  color: '#999999',
-  selectedColor: '#018d71',
-  backgroundColor: '#F8F8F8',
+  color: '#8C8C8C',
+  selectedColor: '#008FFF',
+  backgroundColor: '#FFFFFF',
   borderStyle: 'black',
   height: '50px',
   fontSize: '10px',
