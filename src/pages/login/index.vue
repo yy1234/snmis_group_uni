@@ -5,6 +5,7 @@ import { computed, reactive, ref } from 'vue'
 import { fetchEncryptedParameter, login } from '@/api/legacy/auth'
 import { fetchMobileListParams } from '@/api/legacy/config'
 import { useAuthStore } from '@/store/auth'
+import { hasLegacySession } from '@/utils/authGuard'
 import { encryptPassword } from '@/utils/crypto'
 import { legacyRequest } from '@/utils/http'
 import {
@@ -74,7 +75,7 @@ onLoad(() => {
     form.password = rememberState.password
   }
 
-  if (auth.cookie && auth.loginModel) {
+  if (hasLegacySession(auth)) {
     uni.reLaunch({ url: '/pages/index/index' })
   }
 })

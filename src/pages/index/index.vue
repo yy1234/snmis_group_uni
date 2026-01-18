@@ -3,6 +3,7 @@ import type { FunctionEntry, HeaderMetric, MainIndicator } from './work.models'
 import { onLoad } from '@dcloudio/uni-app'
 import { ref } from 'vue'
 import { useAuthStore } from '@/store/auth'
+import { hasLegacySession } from '@/utils/authGuard'
 import { legacyRequest } from '@/utils/http/legacyClient'
 import { parseLegacyResponse } from '@/utils/login'
 import WorkFunctionGrid from './components/WorkFunctionGrid.vue'
@@ -30,7 +31,7 @@ const indicators = ref<MainIndicator[]>([])
 const loading = ref(false)
 
 onLoad(() => {
-  if (!auth.cookie || !auth.loginModel) {
+  if (!hasLegacySession(auth)) {
     uni.reLaunch({ url: '/pages/login/index' })
     return
   }
