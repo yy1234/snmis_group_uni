@@ -389,13 +389,13 @@ function setLoginType(type: LoginType) {
 .login-logo {
   width: 240rpx;
   height: 100rpx;
-  margin: 100rpx auto 0;
+  margin: 200rpx auto 0;
   display: block;
 }
 
 .login-form {
   padding: 0 68rpx;
-  margin-top: 75rpx;
+  margin-top: 100rpx;
 }
 
 .input-group {
