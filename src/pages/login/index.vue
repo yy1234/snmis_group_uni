@@ -381,6 +381,8 @@ function setLoginType(type: LoginType) {
 .login-page {
   position: relative;
   min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: #fff;
   font-family: 'PingFang SC', 'Helvetica Neue', sans-serif;
   color: #333;
