@@ -1,3 +1,5 @@
+import { isApp, isH5 } from '@uni-helper/uni-env'
+
 export interface LegacySessionState {
   cookie?: string
   loginModel?: unknown
@@ -9,7 +11,7 @@ export function hasLegacySession(
 ) {
   if (!state?.loginModel)
     return false
-  const isWeb = options.isWeb ?? typeof window !== 'undefined'
+  const isWeb = options.isWeb ?? (isH5 || isApp)
   if (isWeb)
     return true
   return Boolean(state.cookie)
