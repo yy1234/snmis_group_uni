@@ -23,6 +23,7 @@ const required = [
   'work/header/work_currentDot.png',
   'work/header/work_otherDot.png',
   'work/functions/经营计划.png',
+  'work/home_boiler.png',
 ]
 
 describe('static assets', () => {
