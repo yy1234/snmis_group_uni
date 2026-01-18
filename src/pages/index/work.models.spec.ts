@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { buildFunctionEntries, normalizeHeaderMetrics, normalizeMainIndicators } from './work.models'
+import {
+  buildFunctionEntries,
+  normalizeEnvironmentalItems,
+  normalizeEquipmentItems,
+  normalizeHeaderMetrics,
+  normalizeMainIndicators,
+  resolveEquipmentStatusColor,
+} from './work.models'
 
 describe('work models', () => {
   it('filters function entries by menuLevel', () => {
@@ -28,5 +35,54 @@ describe('work models', () => {
       { value: '12.3', unit: 't', percent: 45.6 },
       { value: '8.9', unit: 't', percent: 33.3 },
     ])
+  })
+
+  it('normalizes environmental protection items', () => {
+    const input = [{
+      equName: '锅炉',
+      equStatus: '运行',
+      dustHour: '10',
+      hclHour: '20',
+      coHour: '30',
+      so2Hour: '40',
+      noxHour: '50',
+      ltwdHour: '850',
+    }]
+    const [item] = normalizeEnvironmentalItems(input as any)
+    expect(item.equName).toBe('锅炉')
+    expect(item.equStatus).toBe('运行')
+    expect(item.metrics).toHaveLength(6)
+    expect(item.metrics[0]).toEqual({ name: 'DUST(mg/Nm³)', standard: '国标30', value: '10' })
+  })
+
+  it('normalizes equipment operation items', () => {
+    const input = [{
+      equName: '1号炉',
+      statusName: '投运',
+      equipmentType: 1,
+      annualRunTime: 12.5,
+      stopTimes: 3,
+      pjwd: '900',
+      zclws: '1',
+      cclws: '2',
+      yclws: '3',
+      zclwz: '4',
+      zclwzh: '5',
+      zclwy: '6',
+      zclwx: '7',
+      cclwx: '8',
+      yclwx: '9',
+    }]
+    const [item] = normalizeEquipmentItems(input as any)
+    expect(item.equName).toBe('1号炉')
+    expect(item.metrics).toHaveLength(12)
+    expect(item.metrics[0].label).toBe('年度运行时长')
+  })
+
+  it('maps status to colors', () => {
+    expect(resolveEquipmentStatusColor('运行')).toBe('#19C419')
+    expect(resolveEquipmentStatusColor('投运')).toBe('#19C419')
+    expect(resolveEquipmentStatusColor('检修')).toBe('#FF9000')
+    expect(resolveEquipmentStatusColor('备用')).toBe('#008FFF')
   })
 })
