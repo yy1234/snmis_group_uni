@@ -1,228 +1,145 @@
-<script lang="ts" setup>
+<script setup lang="ts">
+import type { FunctionEntry, HeaderMetric, MainIndicator } from './work.models'
 import { onLoad } from '@dcloudio/uni-app'
-import { computed } from 'vue'
+import { ref } from 'vue'
 import { useAuthStore } from '@/store/auth'
-import { buildTodoUrl } from '@/utils/webview'
+import { legacyRequest } from '@/utils/http/legacyClient'
+import { parseLegacyResponse } from '@/utils/login'
+import WorkFunctionGrid from './components/WorkFunctionGrid.vue'
+import WorkHeaderCarousel from './components/WorkHeaderCarousel.vue'
+import WorkIndicatorList from './components/WorkIndicatorList.vue'
+import {
+  buildFunctionEntries,
+
+  normalizeHeaderMetrics,
+  normalizeMainIndicators,
+} from './work.models'
 
 definePage({
   style: {
-    navigationBarTitleText: 'Home',
+    navigationBarTitleText: '工作',
   },
 })
 
 const auth = useAuthStore()
 
-const displayName = computed(() => {
-  return auth.loginModel?.userName || auth.loginModel?.loginName || 'User'
-})
-
-const entries = [
-  {
-    key: 'todo',
-    title: 'Todo Center',
-    description: 'Pending tasks and approvals',
-    params: { isFinished: false },
-  },
-  {
-    key: 'done',
-    title: 'Completed',
-    description: 'History and archived items',
-    params: { isFinished: true },
-  },
-  {
-    key: 'materials',
-    title: 'Materials',
-    description: 'Requests and inventory',
-    params: { isMaterialRequisition: true },
-  },
-  {
-    key: 'work',
-    title: 'Work Tickets',
-    description: 'Field execution workflows',
-    params: {},
-  },
-]
-
-const hasWebConfig = computed(() => Boolean(auth.todoWebViewIP))
+const headerItems = ref([1, 2, 3])
+const headerMetrics = ref<HeaderMetric[]>([])
+const functionEntries = ref<FunctionEntry[]>([])
+const indicators = ref<MainIndicator[]>([])
+const loading = ref(false)
 
 onLoad(() => {
   if (!auth.cookie || !auth.loginModel) {
     uni.reLaunch({ url: '/pages/login/index' })
-  }
-})
-
-function openEntry(entry: typeof entries[number]) {
-  if (!hasWebConfig.value) {
-    uni.showToast({ title: 'Web config missing', icon: 'none' })
     return
   }
-  const url = buildTodoUrl(entry.params || {})
-  const title = entry.title
-  uni.navigateTo({
-    url: `/pages/webview/index?title=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`,
-  })
+  fetchWorkData()
+})
+
+async function fetchWorkData() {
+  loading.value = true
+  functionEntries.value = buildFunctionEntries(auth.loginModel?.permInstanceDtos ?? [])
+  try {
+    const headerRes = await legacyRequest('mobileAppAnalysisMgmt/monthQuotaDataAnalysis.do', {
+      userId: auth.loginModel?.userId,
+    })
+    const headerPayload = parseLegacyResponse<any[]>(headerRes.data)
+    if (headerPayload.success === false) {
+      uni.showToast({ title: headerPayload.message || '加载失败', icon: 'none' })
+    }
+    headerMetrics.value = normalizeHeaderMetrics(headerPayload.data ?? [])
+
+    const indicatorRes = await legacyRequest('mobileAppAnalysisMgmt/listMainIndicatorShow.do', {
+      userId: auth.loginModel?.userId,
+    })
+    const indicatorPayload = parseLegacyResponse<any[]>(indicatorRes.data)
+    if (indicatorPayload.success === false) {
+      uni.showToast({ title: indicatorPayload.message || '加载失败', icon: 'none' })
+    }
+    indicators.value = normalizeMainIndicators(indicatorPayload.data ?? [])
+  }
+  catch (error) {
+    uni.showToast({ title: '网络异常', icon: 'none' })
+  }
+  finally {
+    loading.value = false
+  }
 }
 
-function logout() {
-  auth.clearAuth()
-  uni.reLaunch({ url: '/pages/login/index' })
+function handleFunction(entry: FunctionEntry) {
+  uni.showToast({ title: `${entry.title} 暂未开放`, icon: 'none' })
 }
 </script>
 
 <template>
-  <view class="portal">
-    <view class="hero">
-      <view class="hero-card">
-        <text class="hero-title">Welcome back</text>
-        <text class="hero-name">{{ displayName }}</text>
-        <text class="hero-subtitle">Unified operations workspace</text>
-      </view>
-      <button class="ghost" @tap="logout">
-        Sign Out
-      </button>
+  <scroll-view scroll-y class="work-page">
+    <work-header-carousel :items="headerItems" :metrics="headerMetrics" />
+
+    <view class="work-section">
+      <text class="work-section-title">功能入口</text>
+      <work-function-grid :items="functionEntries" @select="handleFunction" />
     </view>
 
-    <view class="section">
-      <text class="section-title">WebView Launchpad</text>
-      <text class="section-subtitle">All flows stay on the unified web stack.</text>
+    <view class="work-section">
+      <text class="work-section-title">主要指标</text>
+      <work-indicator-list :items="indicators" />
     </view>
 
-    <view class="entry-grid">
-      <view
-        v-for="entry in entries"
-        :key="entry.key"
-        class="entry-card"
-        @tap="openEntry(entry)"
-      >
-        <text class="entry-title">{{ entry.title }}</text>
-        <text class="entry-desc">{{ entry.description }}</text>
-        <view class="entry-footer">
-          <text class="entry-link">Open</text>
-        </view>
+    <view class="work-section">
+      <text class="work-section-title">环保指标</text>
+      <view class="work-card placeholder">
+        环保指标内容（按 Flutter UI 复刻）
       </view>
     </view>
 
-    <view v-if="!hasWebConfig" class="warning">
-      <text>Web config not loaded. Please sign in again.</text>
+    <view class="work-section">
+      <text class="work-section-title">设备运行</text>
+      <view class="work-card placeholder">
+        设备运行内容（按 Flutter UI 复刻）
+      </view>
     </view>
-  </view>
+
+    <view v-if="loading" class="work-loading">
+      加载中...
+    </view>
+  </scroll-view>
 </template>
 
-<style lang="scss">
-.portal {
+<style scoped lang="scss">
+.work-page {
   min-height: 100vh;
-  padding: 32rpx 32rpx 80rpx;
-  background: linear-gradient(180deg, #f4f7ff 0%, #f7f2ec 50%, #f4f4f2 100%);
-  font-family: 'Noto Sans SC', 'PingFang SC', 'Helvetica Neue', sans-serif;
+  background: #f2f2f2;
+  padding: 20rpx;
 }
 
-.hero {
-  display: flex;
-  flex-direction: column;
-  gap: 20rpx;
-  margin-bottom: 40rpx;
+.work-section {
+  margin-top: 24rpx;
 }
 
-.hero-card {
-  padding: 28rpx 32rpx;
-  border-radius: 24rpx;
-  background: #1b2345;
-  color: #fff;
-  box-shadow: 0 18rpx 48rpx rgba(27, 35, 69, 0.35);
-}
-
-.hero-title {
-  font-size: 26rpx;
-  opacity: 0.7;
-}
-
-.hero-name {
-  display: block;
-  font-size: 40rpx;
-  font-weight: 700;
-  margin-top: 8rpx;
-}
-
-.hero-subtitle {
-  display: block;
-  font-size: 22rpx;
-  margin-top: 8rpx;
-  opacity: 0.8;
-}
-
-.section {
-  margin-bottom: 24rpx;
-}
-
-.section-title {
+.work-section-title {
   font-size: 28rpx;
   font-weight: 600;
-  color: #1b2345;
+  color: #333;
+  margin-bottom: 16rpx;
 }
 
-.section-subtitle {
-  display: block;
-  font-size: 22rpx;
-  color: #6b7280;
-  margin-top: 6rpx;
-}
-
-.entry-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20rpx;
-}
-
-.entry-card {
-  width: calc(50% - 10rpx);
-  padding: 24rpx;
-  border-radius: 20rpx;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 14rpx 32rpx rgba(24, 31, 54, 0.08);
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-  transition: transform 0.2s ease;
-}
-
-.entry-title {
-  font-size: 26rpx;
-  font-weight: 600;
-  color: #1b2345;
-}
-
-.entry-desc {
-  font-size: 22rpx;
-  color: #6b7280;
-}
-
-.entry-footer {
-  margin-top: auto;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.entry-link {
-  font-size: 22rpx;
-  color: #2f4bbd;
-}
-
-.ghost {
-  align-self: flex-start;
-  padding: 12rpx 24rpx;
-  border-radius: 14rpx;
-  border: 1rpx solid rgba(27, 35, 69, 0.2);
+.work-card {
   background: #fff;
-  color: #1b2345;
-  font-size: 22rpx;
+  border-radius: 20rpx;
+  padding: 24rpx;
+  box-shadow: 0 12rpx 30rpx rgba(0, 0, 0, 0.08);
 }
 
-.warning {
-  margin-top: 32rpx;
-  padding: 20rpx 24rpx;
-  border-radius: 16rpx;
-  background: rgba(255, 200, 120, 0.2);
-  color: #8a4b13;
-  font-size: 22rpx;
+.placeholder {
+  color: #999;
+  font-size: 24rpx;
+}
+
+.work-loading {
+  text-align: center;
+  color: #999;
+  font-size: 24rpx;
+  padding: 16rpx 0 32rpx;
 }
 </style>
