@@ -19,6 +19,12 @@ interface ImportMetaEnv {
   readonly VITE_APP_PROXY_ENABLE: 'true' | 'false'
   /** H5是否需要代理，需要的话有个前缀 */
   readonly VITE_APP_PROXY_PREFIX: string
+  /** legacy 登录接口是否启用 H5 代理 */
+  readonly VITE_LEGACY_PROXY_ENABLE: 'true' | 'false'
+  /** legacy 登录接口 H5 代理前缀 */
+  readonly VITE_LEGACY_PROXY_PREFIX: string
+  /** legacy 登录接口 H5 代理目标地址 */
+  readonly VITE_LEGACY_PROXY_TARGET: string
   /** 后端是否有统一前缀 /api */
   readonly VITE_SERVER_HAS_API_PREFIX: 'true' | 'false'
   /** 认证模式，'single' | 'double' ==> 单token | 双token */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loadRemember, saveRemember } from './remember'
+import { loadLoginRemember, loadRemember, saveRemember } from './remember'
 
 type Store = Record<string, unknown>
 
@@ -38,5 +38,17 @@ describe('remember storage', () => {
     saveRemember({ remember: false, loginName: 'user', password: 'secret' }, storage)
     const result = loadRemember(storage)
     expect(result).toEqual({ remember: false, loginName: 'user', password: '' })
+  })
+
+  it('clears stored password on login entry while keeping login name', () => {
+    const storage = createStorage({
+      ISREMIND_PASSWORD: true,
+      LOGIN_USER_NAME: 'user',
+      ISREMIND: 'secret',
+    })
+    const result = loadLoginRemember(storage)
+    expect(result).toEqual({ loginName: 'user' })
+    const stored = loadRemember(storage)
+    expect(stored).toEqual({ remember: false, loginName: 'user', password: '' })
   })
 })

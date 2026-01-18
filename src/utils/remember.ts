@@ -47,3 +47,9 @@ export function saveRemember(
     storage.setItem(REMEMBER_KEYS.password, '')
   }
 }
+
+export function loadLoginRemember(storage: StorageLike = getDefaultStorage()) {
+  const loginName = toStringValue(storage.getItem(REMEMBER_KEYS.loginName))
+  saveRemember({ remember: false, loginName, password: '' }, storage)
+  return { loginName }
+}

@@ -1,6 +1,6 @@
 import type { AuthState, LoginModel } from '@/types/auth'
-import { Buffer } from 'node:buffer'
 import { defineStore } from 'pinia'
+import { encodeBase64 } from '@/utils/base64'
 
 const STORAGE_KEY = 'snmis_auth'
 
@@ -15,9 +15,7 @@ export function buildAuthorization(loginModel?: LoginModel): string {
     companyId: loginModel.userCompanyId,
   }
   const json = JSON.stringify(payload)
-  const base64 = typeof btoa === 'function'
-    ? btoa(unescape(encodeURIComponent(json)))
-    : Buffer.from(json, 'utf8').toString('base64')
+  const base64 = encodeBase64(json)
   return `Bearer ${base64}`
 }
 

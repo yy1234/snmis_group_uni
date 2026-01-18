@@ -15,7 +15,13 @@ import {
   parseLegacyResponse,
   resolveLegacyConfig,
 } from '@/utils/login'
-import { loadRemember, saveRemember } from '@/utils/remember'
+import { loadLoginRemember, saveRemember } from '@/utils/remember'
+
+definePage({
+  style: {
+    navigationStyle: 'custom',
+  },
+})
 
 const auth = useAuthStore()
 const loginType = ref<LoginType>('password')
@@ -68,12 +74,10 @@ let logoTapTimer: number | null = null
 let logoTapCount = 0
 
 onLoad(() => {
-  const rememberState = loadRemember()
-  rememberPassword.value = rememberState.remember
+  const rememberState = loadLoginRemember()
+  rememberPassword.value = false
   form.loginName = rememberState.loginName
-  if (rememberState.remember) {
-    form.password = rememberState.password
-  }
+  form.password = ''
 
   if (hasLegacySession(auth)) {
     uni.reLaunch({ url: '/pages/index/index' })
@@ -378,6 +382,10 @@ function setLoginType(type: LoginType) {
 </template>
 
 <style lang="scss">
+page {
+  overflow-x: hidden;
+}
+
 .login-page {
   position: relative;
   min-height: 100vh;

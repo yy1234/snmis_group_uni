@@ -56,6 +56,9 @@ export default defineConfig(({ command, mode }) => {
     VITE_APP_PUBLIC_BASE,
     VITE_APP_PROXY_ENABLE,
     VITE_APP_PROXY_PREFIX,
+    VITE_LEGACY_PROXY_ENABLE,
+    VITE_LEGACY_PROXY_PREFIX,
+    VITE_LEGACY_PROXY_TARGET,
     VITE_COPY_NATIVE_RES_ENABLE,
   } = env
   console.log('环境变量 env -> ', env)
@@ -168,22 +171,30 @@ export default defineConfig(({ command, mode }) => {
         '@img': path.join(process.cwd(), './src/static/images'),
       },
     },
-    server: {
-      host: '0.0.0.0',
-      hmr: true,
-      port: Number.parseInt(VITE_APP_PORT, 10),
-      // 仅 H5 端生效，其他端不生效（其他端走build，不走devServer)
-      proxy: JSON.parse(VITE_APP_PROXY_ENABLE)
-        ? {
-            [VITE_APP_PROXY_PREFIX]: {
-              target: VITE_SERVER_BASEURL,
-              changeOrigin: true,
-              // 后端有/api前缀则不做处理，没有则需要去掉
-              rewrite: path => path.replace(new RegExp(`^${VITE_APP_PROXY_PREFIX}`), ''),
-            },
-          }
-        : undefined,
-    },
+    server: (() => {
+      const proxy: Record<string, { target: string, changeOrigin: boolean, rewrite?: (path: string) => string }> = {}
+      if (JSON.parse(VITE_APP_PROXY_ENABLE)) {
+        proxy[VITE_APP_PROXY_PREFIX] = {
+          target: VITE_SERVER_BASEURL,
+          changeOrigin: true,
+          // 后端有/api前缀则不做处理，没有则需要去掉
+          rewrite: path => path.replace(new RegExp(`^${VITE_APP_PROXY_PREFIX}`), ''),
+        }
+      }
+      if (VITE_LEGACY_PROXY_ENABLE === 'true') {
+        proxy[VITE_LEGACY_PROXY_PREFIX] = {
+          target: VITE_LEGACY_PROXY_TARGET,
+          changeOrigin: true,
+        }
+      }
+      return {
+        host: '0.0.0.0',
+        hmr: true,
+        port: Number.parseInt(VITE_APP_PORT, 10),
+        // 仅 H5 端生效，其他端不生效（其他端走build，不走devServer)
+        proxy: Object.keys(proxy).length > 0 ? proxy : undefined,
+      }
+    })(),
     esbuild: {
       drop: VITE_DELETE_CONSOLE === 'true' ? ['console', 'debugger'] : [],
     },

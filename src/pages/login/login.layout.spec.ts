@@ -13,4 +13,8 @@ describe('login layout', () => {
     expect(content).toMatch(/\.login-page[\s\S]*?height:\s*100vh;/)
     expect(content).toMatch(/\.login-page[\s\S]*?overflow:\s*hidden;/)
   })
+
+  it('prevents horizontal scroll on the page container', () => {
+    expect(content).toMatch(/(?:^|\n)page[\s\S]*?overflow-x:\s*hidden;/)
+  })
 })
